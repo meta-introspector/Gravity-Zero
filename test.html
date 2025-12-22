@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gravity Zero Test</title>
+    <style>
+        body { margin: 0; background: #000; color: #00ff00; font-family: monospace; }
+        #test { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div id="test">
+        <h1>Testing Three.js...</h1>
+        <div id="status">Loading...</div>
+        <div id="gameArea"></div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js"></script>
+    <script>
+        document.getElementById('status').innerHTML = 'Three.js loaded: ' + (typeof THREE !== 'undefined');
+        
+        if (typeof THREE !== 'undefined') {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, 400/300, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer();
+            
+            renderer.setSize(400, 300);
+            renderer.setClearColor(0x222222);
+            document.getElementById('gameArea').appendChild(renderer.domElement);
+            
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            
+            camera.position.z = 5;
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            document.getElementById('status').innerHTML = 'Three.js working! ✓';
+        }
+    </script>
+</body>
+</html>
