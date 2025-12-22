@@ -6,7 +6,7 @@ import { PhysicsWorld } from './physics/PhysicsWorld.js';
 import { InputManager } from './systems/InputManager.js';
 import { UI } from './systems/UI.js';
 
-export class Game {
+class Game {
     constructor() {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -50,6 +50,7 @@ export class Game {
         
         // Camera follow setup
         this.camera.position.set(0, 15, 20);
+        this.camera.lookAt(0, 0, 0);
         
         // Start game loop
         this.animate();
@@ -97,3 +98,6 @@ export class Game {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
+
+// Initialize the game
+const game = new Game();
