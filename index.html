@@ -593,18 +593,18 @@
                 const relY = pos.y - this.camera.position.y;
                 const relZ = pos.z - this.camera.position.z;
                 
-                // Simple camera rotation
-                const cosY = Math.cos(-this.camera.rotation.y);
-                const sinY = Math.sin(-this.camera.rotation.y);
+                // Apply camera rotation for proper 3D view
+                const cosX = Math.cos(this.camera.rotation.x);
+                const sinX = Math.sin(this.camera.rotation.x);
                 
-                const rotX = relX * cosY - relZ * sinY;
-                const rotZ = relX * sinY + relZ * cosY;
+                const rotY = relY * cosX - relZ * sinX;
+                const rotZ = relY * sinX + relZ * cosX;
                 
                 if (rotZ <= 0) return null; // Behind camera
                 
                 return {
-                    x: centerX + (rotX * focalLength) / rotZ,
-                    y: centerY - (relY * focalLength) / rotZ,
+                    x: centerX + (relX * focalLength) / rotZ,
+                    y: centerY - (rotY * focalLength) / rotZ,
                     z: rotZ
                 };
             }
