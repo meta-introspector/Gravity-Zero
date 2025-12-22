@@ -2,7 +2,6 @@
   "name": "gravity-zero",
   "version": "1.0.0",
   "scripts": {
-    "start": "python -m http.server 3000",
-    "dev": "python -m http.server 3000"
+    "vercel-build": "echo 'Build complete'"
   }
 }
