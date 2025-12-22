@@ -263,8 +263,8 @@
                 }
 
                 // Player physics - improved controls
-                const thrust = 1.2;
-                const drag = 0.88;
+                const thrust = 0.4;
+                const drag = 0.94;
                 const turnSpeed = 0.04;
                 const hoverForce = 0.8;
 
@@ -338,14 +338,14 @@
             }
 
             updateCamera() {
-                // Smooth third-person camera
+                // Static third-person camera - follows position only
                 const distance = 20;
                 const height = 10;
                 
-                // Target camera position behind vehicle
-                const targetX = this.vehiclePos.x - Math.sin(this.vehicleRot.y) * distance;
+                // Camera stays behind vehicle but doesn't rotate with it
+                const targetX = this.vehiclePos.x;
                 const targetY = this.vehiclePos.y + height;
-                const targetZ = this.vehiclePos.z + Math.cos(this.vehicleRot.y) * distance;
+                const targetZ = this.vehiclePos.z + distance;
                 
                 // Smooth camera movement
                 const lerpFactor = 0.1;
@@ -353,12 +353,9 @@
                 this.camera.position.y += (targetY - this.camera.position.y) * lerpFactor;
                 this.camera.position.z += (targetZ - this.camera.position.z) * lerpFactor;
                 
-                // Look at vehicle with slight forward offset
-                const lookAtX = this.vehiclePos.x + Math.sin(this.vehicleRot.y) * 5;
-                const lookAtZ = this.vehiclePos.z - Math.cos(this.vehicleRot.y) * 5;
-                
-                const dx = lookAtX - this.camera.position.x;
-                const dz = lookAtZ - this.camera.position.z;
+                // Camera always looks at vehicle center
+                const dx = this.vehiclePos.x - this.camera.position.x;
+                const dz = this.vehiclePos.z - this.camera.position.z;
                 this.camera.rotation.y = Math.atan2(dx, dz);
                 this.camera.rotation.x = -0.2; // Slight downward angle
             }
