@@ -68,6 +68,9 @@ class Game {
         // Update vehicle
         this.vehicle.update();
         
+        // Update track
+        this.track.update();
+        
         // Update camera to follow vehicle
         this.updateCamera();
         
