@@ -341,14 +341,14 @@
             }
 
             updateCamera() {
-                // Fixed camera position - no rotation
+                // Third-person camera behind vehicle
                 this.camera.position.x = this.vehiclePos.x;
-                this.camera.position.y = this.vehiclePos.y + 15;
-                this.camera.position.z = this.vehiclePos.z + 25;
+                this.camera.position.y = this.vehiclePos.y + 8;
+                this.camera.position.z = this.vehiclePos.z - 20;
                 
-                // Fixed camera angle - always looks down at vehicle
+                // Camera looks at vehicle
                 this.camera.rotation.y = 0;
-                this.camera.rotation.x = -0.3;
+                this.camera.rotation.x = 0.1;
             }
 
             checkCollisions() {
