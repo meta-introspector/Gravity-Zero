@@ -1,0 +1,17 @@
+{
+  "name": "gravity-zero",
+  "version": "1.0.0",
+  "description": "Anti-gravity combat racing game",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.158.0",
+    "cannon-es": "^0.20.0",
+    "vite": "^5.0.0"
+  },
+  "type": "module"
+}

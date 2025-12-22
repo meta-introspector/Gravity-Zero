@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Zero</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            z-index: 100;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        #shields, #hull, #ammo {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .bar {
+            width: 200px;
+            height: 20px;
+            border: 2px solid #00ffff;
+            background: rgba(0,0,0,0.7);
+            margin-left: 10px;
+            display: inline-block;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .shield-bar { background: linear-gradient(90deg, #0080ff, #00ffff); }
+        .hull-bar { background: linear-gradient(90deg, #ff4000, #ff8000); }
+        .ammo-bar { background: linear-gradient(90deg, #ffff00, #80ff00); }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div id="shields">SHIELDS: <div class="bar"><div class="bar-fill shield-bar" style="width: 100%"></div></div></div>
+            <div id="hull">HULL: <div class="bar"><div class="bar-fill hull-bar" style="width: 100%"></div></div></div>
+            <div id="ammo">AMMO: <div class="bar"><div class="bar-fill ammo-bar" style="width: 100%"></div></div></div>
+        </div>
+    </div>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
