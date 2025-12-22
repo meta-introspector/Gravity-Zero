@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             background: #000;
-            font-family: 'Courier New', monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
             overflow: hidden;
         }
         #gameContainer {
@@ -19,41 +19,75 @@
         }
         #ui {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #00ffff;
+            top: 30px;
+            left: 30px;
+            color: #00d4ff;
             z-index: 100;
-            text-shadow: 0 0 10px #00ffff;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
-        #shields, #hull, #ammo {
-            margin: 5px 0;
-            font-size: 14px;
+        .stat {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            opacity: 0.9;
+        }
+        .label {
+            width: 60px;
+            margin-right: 12px;
+            font-size: 10px;
         }
         .bar {
-            width: 200px;
-            height: 20px;
-            border: 2px solid #00ffff;
-            background: rgba(0,0,0,0.7);
-            margin-left: 10px;
-            display: inline-block;
+            width: 120px;
+            height: 4px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            overflow: hidden;
         }
         .bar-fill {
             height: 100%;
-            transition: width 0.3s;
+            transition: width 0.2s ease;
+            position: relative;
         }
-        .shield-bar { background: linear-gradient(90deg, #0080ff, #00ffff); }
-        .hull-bar { background: linear-gradient(90deg, #ff4000, #ff8000); }
-        .ammo-bar { background: linear-gradient(90deg, #ffff00, #80ff00); }
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+            animation: sweep 2s infinite;
+        }
+        .shield-bar { background: linear-gradient(90deg, #0080ff, #00d4ff); }
+        .hull-bar { background: linear-gradient(90deg, #ff4000, #ff6600); }
+        .ammo-bar { background: linear-gradient(90deg, #ffaa00, #ffdd00); }
+        @keyframes sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <div id="ui">
-            <div id="shields">SHIELDS: <div class="bar"><div class="bar-fill shield-bar" style="width: 100%"></div></div></div>
-            <div id="hull">HULL: <div class="bar"><div class="bar-fill hull-bar" style="width: 100%"></div></div></div>
-            <div id="ammo">AMMO: <div class="bar"><div class="bar-fill ammo-bar" style="width: 100%"></div></div></div>
+            <div class="stat">
+                <div class="label">SHIELD</div>
+                <div class="bar"><div class="bar-fill shield-bar" style="width: 100%"></div></div>
+            </div>
+            <div class="stat">
+                <div class="label">HULL</div>
+                <div class="bar"><div class="bar-fill hull-bar" style="width: 100%"></div></div>
+            </div>
+            <div class="stat">
+                <div class="label">AMMO</div>
+                <div class="bar"><div class="bar-fill ammo-bar" style="width: 100%"></div></div>
+            </div>
         </div>
     </div>
-    <script type="module" src="test.js"></script>
+    <script type="module" src="src/main.js"></script>
 </body>
 </html>
