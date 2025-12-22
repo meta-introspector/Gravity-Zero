@@ -520,7 +520,7 @@
                     
                     ctx.save();
                     ctx.translate(vehicleProj.x, vehicleProj.y);
-                    ctx.rotate(-this.vehicleRot.y);
+                    ctx.rotate(this.vehicleRot.y + Math.PI/2); // Add 90 degrees for proper alignment
                     
                     // Player vehicle - sleek design
                     ctx.fillStyle = '#1a1a2e';
@@ -552,7 +552,7 @@
                         
                         ctx.save();
                         ctx.translate(enemyProj.x, enemyProj.y);
-                        ctx.rotate(-enemy.rotation.y);
+                        ctx.rotate(enemy.rotation.y + Math.PI/2); // Add 90 degrees for proper alignment
                         
                         // Enemy vehicle - angular design
                         ctx.fillStyle = enemy.color;
