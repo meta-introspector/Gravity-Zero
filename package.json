@@ -1,7 +1,3 @@
 {
-  "name": "gravity-zero",
-  "version": "1.0.0",
-  "scripts": {
-    "vercel-build": "echo 'Build complete'"
-  }
+  "name": "gravity-zero"
 }

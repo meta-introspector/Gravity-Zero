@@ -1,95 +1,179 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gravity Zero</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #000;
-            font-family: 'Consolas', 'Monaco', monospace;
-            overflow: hidden;
-        }
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
+        body { margin: 0; background: #000; font-family: monospace; overflow: hidden; }
+        #gameContainer { width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; }
         #ui {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            color: #00d4ff;
-            z-index: 100;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            position: absolute; top: 30px; left: 30px; color: #00d4ff;
+            font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
         }
-        .stat {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            opacity: 0.9;
-        }
-        .label {
-            width: 60px;
-            margin-right: 12px;
-            font-size: 10px;
-        }
+        .stat { margin: 8px 0; display: flex; align-items: center; }
+        .label { width: 60px; margin-right: 12px; font-size: 10px; }
         .bar {
-            width: 120px;
-            height: 4px;
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            position: relative;
-            overflow: hidden;
+            width: 120px; height: 4px; background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3); position: relative;
         }
-        .bar-fill {
-            height: 100%;
-            transition: width 0.2s ease;
-            position: relative;
-        }
-        .bar-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 20px;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
-            animation: sweep 2s infinite;
-        }
+        .bar-fill { height: 100%; transition: width 0.2s ease; }
         .shield-bar { background: linear-gradient(90deg, #0080ff, #00d4ff); }
         .hull-bar { background: linear-gradient(90deg, #ff4000, #ff6600); }
         .ammo-bar { background: linear-gradient(90deg, #ffaa00, #ffdd00); }
-        @keyframes sweep {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        #vehicle {
+            position: absolute; width: 40px; height: 80px; background: #1a1a2e;
+            border: 2px solid #00ffff; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px #00ffff; transition: all 0.1s;
         }
+        #track {
+            position: absolute; width: 100%; height: 100%; background: 
+            radial-gradient(circle at center, #2a2a2a 1px, transparent 1px);
+            background-size: 50px 50px; opacity: 0.3;
+        }
+        .strip {
+            position: absolute; width: 60px; height: 120px; background: #ff0000;
+            opacity: 0.6; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="gameContainer">
+        <div id="track"></div>
+        <div id="vehicle"></div>
+        
+        <!-- Shield strips -->
+        <div class="strip" style="left: 20%; top: 20%;"></div>
+        <div class="strip" style="right: 20%; top: 40%;"></div>
+        <div class="strip" style="left: 30%; bottom: 30%;"></div>
+        
         <div id="ui">
             <div class="stat">
                 <div class="label">SHIELD</div>
-                <div class="bar"><div class="bar-fill shield-bar" style="width: 100%"></div></div>
+                <div class="bar"><div class="bar-fill shield-bar" id="shieldBar" style="width: 100%"></div></div>
             </div>
             <div class="stat">
                 <div class="label">HULL</div>
-                <div class="bar"><div class="bar-fill hull-bar" style="width: 100%"></div></div>
+                <div class="bar"><div class="bar-fill hull-bar" id="hullBar" style="width: 100%"></div></div>
             </div>
             <div class="stat">
                 <div class="label">AMMO</div>
-                <div class="bar"><div class="bar-fill ammo-bar" style="width: 100%"></div></div>
+                <div class="bar"><div class="bar-fill ammo-bar" id="ammoBar" style="width: 100%"></div></div>
             </div>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.20.0/cannon.min.js"></script>
-    <script src="src/game.js"></script>
+
+    <script>
+        class GravityZero {
+            constructor() {
+                this.vehicle = document.getElementById('vehicle');
+                this.x = window.innerWidth / 2;
+                this.y = window.innerHeight / 2;
+                this.vx = 0; this.vy = 0;
+                this.rotation = 0;
+                this.keys = {};
+                this.stats = { shields: 100, hull: 100, ammo: 100 };
+                this.gamepad = null;
+                
+                this.setupInput();
+                this.gameLoop();
+                console.log('🚀 Gravity Zero loaded - WASD or PS5 controller');
+            }
+
+            setupInput() {
+                document.addEventListener('keydown', (e) => this.keys[e.code] = true);
+                document.addEventListener('keyup', (e) => this.keys[e.code] = false);
+                window.addEventListener('gamepadconnected', (e) => {
+                    this.gamepad = e.gamepad;
+                    console.log('🎮 PS5 Controller connected');
+                });
+            }
+
+            update() {
+                // Get input
+                let forward = this.keys['KeyW'] || this.keys['ArrowUp'];
+                let backward = this.keys['KeyS'] || this.keys['ArrowDown'];
+                let left = this.keys['KeyA'] || this.keys['ArrowLeft'];
+                let right = this.keys['KeyD'] || this.keys['ArrowRight'];
+                
+                // PS5 Controller
+                if (this.gamepad) {
+                    const gp = navigator.getGamepads()[this.gamepad.index];
+                    if (gp) {
+                        forward = forward || gp.buttons[7].value > 0.1; // R2
+                        backward = backward || gp.buttons[6].value > 0.1; // L2
+                        const stickX = gp.axes[0];
+                        if (Math.abs(stickX) > 0.2) {
+                            if (stickX < 0) left = true;
+                            if (stickX > 0) right = true;
+                        }
+                    }
+                }
+
+                // Physics
+                const thrust = 0.5;
+                const drag = 0.95;
+                const turnSpeed = 0.05;
+
+                if (forward) {
+                    this.vx += Math.sin(this.rotation) * thrust;
+                    this.vy -= Math.cos(this.rotation) * thrust;
+                }
+                if (backward) {
+                    this.vx -= Math.sin(this.rotation) * thrust * 0.6;
+                    this.vy += Math.cos(this.rotation) * thrust * 0.6;
+                }
+                if (left) this.rotation -= turnSpeed;
+                if (right) this.rotation += turnSpeed;
+
+                // Apply drag and update position
+                this.vx *= drag;
+                this.vy *= drag;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Boundaries
+                this.x = Math.max(50, Math.min(window.innerWidth - 50, this.x));
+                this.y = Math.max(50, Math.min(window.innerHeight - 50, this.y));
+
+                // Update visual
+                this.vehicle.style.left = this.x + 'px';
+                this.vehicle.style.top = this.y + 'px';
+                this.vehicle.style.transform = `translate(-50%, -50%) rotate(${this.rotation}rad)`;
+
+                // Check shield strips
+                this.checkCollisions();
+                this.updateUI();
+            }
+
+            checkCollisions() {
+                const strips = document.querySelectorAll('.strip');
+                strips.forEach(strip => {
+                    const rect = strip.getBoundingClientRect();
+                    const vRect = this.vehicle.getBoundingClientRect();
+                    
+                    if (vRect.left < rect.right && vRect.right > rect.left &&
+                        vRect.top < rect.bottom && vRect.bottom > rect.top) {
+                        if (this.stats.shields < 100) {
+                            this.stats.shields = Math.min(100, this.stats.shields + 0.5);
+                        }
+                    }
+                });
+            }
+
+            updateUI() {
+                document.getElementById('shieldBar').style.width = this.stats.shields + '%';
+                document.getElementById('hullBar').style.width = this.stats.hull + '%';
+                document.getElementById('ammoBar').style.width = this.stats.ammo + '%';
+            }
+
+            gameLoop() {
+                this.update();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        new GravityZero();
+    </script>
 </body>
 </html>
