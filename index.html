@@ -262,13 +262,13 @@
                     }
                 }
 
-                // Natural acceleration physics
-                const maxThrust = 0.6;
+                // Natural acceleration physics - much slower
+                const maxThrust = 0.15;
                 const currentSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-                const speedRatio = Math.min(currentSpeed / 8, 1); // Max speed of 8
+                const speedRatio = Math.min(currentSpeed / 3, 1); // Max speed of 3
                 const thrust = maxThrust * (1 - speedRatio * 0.7); // Reduce thrust as speed increases
-                const drag = 0.96;
-                const turnSpeed = 0.04;
+                const drag = 0.98;
+                const turnSpeed = 0.02;
                 const hoverForce = 0.8;
 
                 // Anti-gravity hover
@@ -398,9 +398,9 @@
                 this.enemies.forEach(enemy => {
                     if (enemy.hull <= 0) return;
                     
-                    // Simple AI - move forward and occasionally turn
-                    const thrust = 0.6;
-                    const drag = 0.93;
+                    // Simple AI - move forward and occasionally turn - slower
+                    const thrust = 0.12;
+                    const drag = 0.98;
                     
                     // Random steering
                     if (Math.random() < 0.02) {
@@ -571,13 +571,18 @@
                     }
                 });
                 
-                // Render bullets
-                ctx.fillStyle = '#ffff00';
+                // Render bullets as lines
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 2;
                 this.bullets.forEach(bullet => {
                     const bulletProj = this.project3D(bullet.position, centerX, centerY, focalLength);
                     if (bulletProj) {
-                        const size = 200 / bulletProj.z;
-                        ctx.fillRect(bulletProj.x - size/2, bulletProj.y - size/2, size, size);
+                        const endX = bulletProj.x + bullet.velocity.x * 5;
+                        const endY = bulletProj.y + bullet.velocity.z * 5;
+                        ctx.beginPath();
+                        ctx.moveTo(bulletProj.x, bulletProj.y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
                     }
                 });
             }
