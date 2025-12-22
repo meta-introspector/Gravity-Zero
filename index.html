@@ -338,26 +338,14 @@
             }
 
             updateCamera() {
-                // Static third-person camera - follows position only
-                const distance = 20;
-                const height = 10;
+                // Fixed camera position - no rotation
+                this.camera.position.x = this.vehiclePos.x;
+                this.camera.position.y = this.vehiclePos.y + 15;
+                this.camera.position.z = this.vehiclePos.z + 25;
                 
-                // Camera stays behind vehicle but doesn't rotate with it
-                const targetX = this.vehiclePos.x;
-                const targetY = this.vehiclePos.y + height;
-                const targetZ = this.vehiclePos.z + distance;
-                
-                // Smooth camera movement
-                const lerpFactor = 0.1;
-                this.camera.position.x += (targetX - this.camera.position.x) * lerpFactor;
-                this.camera.position.y += (targetY - this.camera.position.y) * lerpFactor;
-                this.camera.position.z += (targetZ - this.camera.position.z) * lerpFactor;
-                
-                // Camera always looks at vehicle center
-                const dx = this.vehiclePos.x - this.camera.position.x;
-                const dz = this.vehiclePos.z - this.camera.position.z;
-                this.camera.rotation.y = Math.atan2(dx, dz);
-                this.camera.rotation.x = -0.2; // Slight downward angle
+                // Fixed camera angle - always looks down at vehicle
+                this.camera.rotation.y = 0;
+                this.camera.rotation.x = -0.3;
             }
 
             checkCollisions() {
@@ -488,9 +476,29 @@
                 const ctx = this.renderer.ctx;
                 const canvas = this.renderer.canvas;
                 
-                // Clear screen
-                ctx.fillStyle = '#0a0a0a';
+                // Futuristic city background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#1a0033');
+                gradient.addColorStop(0.7, '#330066');
+                gradient.addColorStop(1, '#0a0a0a');
+                ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // City skyline silhouette
+                ctx.fillStyle = '#000022';
+                for (let i = 0; i < 20; i++) {
+                    const x = (i * canvas.width / 20);
+                    const height = 100 + Math.random() * 200;
+                    ctx.fillRect(x, canvas.height - height, canvas.width / 20, height);
+                }
+                
+                // Neon city lights
+                ctx.fillStyle = '#00ffff';
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = canvas.height - Math.random() * 300;
+                    ctx.fillRect(x, y, 2, 2);
+                }
                 
                 // Simple 3D projection
                 const centerX = canvas.width / 2;
@@ -522,14 +530,14 @@
                     }
                 });
                 
-                // Render vehicle
+                // Render vehicle with correct alignment
                 const vehicleProj = this.project3D(this.vehiclePos, centerX, centerY, focalLength);
                 if (vehicleProj) {
                     const size = 1000 / vehicleProj.z;
                     
                     ctx.save();
                     ctx.translate(vehicleProj.x, vehicleProj.y);
-                    ctx.rotate(this.vehicleRot.y);
+                    ctx.rotate(-this.vehicleRot.y); // Negative for correct alignment
                     
                     // Vehicle body
                     ctx.fillStyle = '#1a1a2e';
@@ -539,6 +547,10 @@
                     ctx.strokeStyle = '#00ffff';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(-size/2, -size, size, size*2);
+                    
+                    // Forward indicator
+                    ctx.fillStyle = '#00ffff';
+                    ctx.fillRect(-size/8, -size*1.2, size/4, size/2);
                     
                     ctx.restore();
                 }
@@ -553,7 +565,7 @@
                         
                         ctx.save();
                         ctx.translate(enemyProj.x, enemyProj.y);
-                        ctx.rotate(enemy.rotation.y);
+                        ctx.rotate(-enemy.rotation.y); // Negative for correct alignment
                         
                         // Enemy body
                         ctx.fillStyle = enemy.color;
