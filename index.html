@@ -5,7 +5,6 @@
     <style>
         body { margin: 0; background: #000; font-family: monospace; overflow: hidden; }
         #gameContainer { width: 100vw; height: 100vh; position: relative; }
-        canvas { display: block; }
         #ui {
             position: absolute; top: 30px; left: 30px; color: #00d4ff;
             font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
@@ -20,33 +19,10 @@
         .shield-bar { background: linear-gradient(90deg, #0080ff, #00d4ff); }
         .hull-bar { background: linear-gradient(90deg, #ff4000, #ff6600); }
         .ammo-bar { background: linear-gradient(90deg, #ffaa00, #ffdd00); }
-        #vehicle {
-            position: absolute; width: 40px; height: 80px; background: #1a1a2e;
-            border: 2px solid #00ffff; left: 50%; top: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px #00ffff; transition: all 0.1s;
-        }
-        #track {
-            position: absolute; width: 100%; height: 100%; background: 
-            radial-gradient(circle at center, #2a2a2a 1px, transparent 1px);
-            background-size: 50px 50px; opacity: 0.3;
-        }
-        .strip {
-            position: absolute; width: 60px; height: 120px; background: #ff0000;
-            opacity: 0.6; animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <div id="track"></div>
-        <div id="vehicle"></div>
-        
-        <!-- Shield strips -->
-        <div class="strip" style="left: 20%; top: 20%;"></div>
-        <div class="strip" style="right: 20%; top: 40%;"></div>
-        <div class="strip" style="left: 30%; bottom: 30%;"></div>
-        
         <div id="ui">
             <div class="stat">
                 <div class="label">SHIELD</div>
@@ -66,18 +42,174 @@
     <script>
         class GravityZero {
             constructor() {
-                this.vehicle = document.getElementById('vehicle');
-                this.x = window.innerWidth / 2;
-                this.y = window.innerHeight / 2;
-                this.vx = 0; this.vy = 0;
-                this.rotation = 0;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.vehicle = null;
+                this.enemies = [];
+                this.bullets = [];
+                this.vehiclePos = { x: 0, y: 3, z: 0 };
+                this.vehicleRot = { x: 0, y: 0, z: 0 };
+                this.velocity = { x: 0, y: 0, z: 0 };
                 this.keys = {};
                 this.stats = { shields: 100, hull: 100, ammo: 100 };
                 this.gamepad = null;
+                this.raceStarted = false;
+                this.countdown = 3;
+                this.lastShot = 0;
                 
+                this.init3D();
                 this.setupInput();
+                this.startCountdown();
                 this.gameLoop();
-                console.log('🚀 Gravity Zero loaded - WASD or PS5 controller');
+                console.log('🚀 Gravity Zero 3D Combat Racing loaded');
+            }
+
+            startCountdown() {
+                const countdownEl = document.createElement('div');
+                countdownEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#00ffff;font-size:80px;font-family:monospace;z-index:1000;text-shadow:0 0 20px #00ffff';
+                document.body.appendChild(countdownEl);
+                
+                const timer = setInterval(() => {
+                    if (this.countdown > 0) {
+                        countdownEl.textContent = this.countdown;
+                        this.countdown--;
+                    } else {
+                        countdownEl.textContent = 'GO!';
+                        setTimeout(() => {
+                            this.raceStarted = true;
+                            document.body.removeChild(countdownEl);
+                        }, 500);
+                        clearInterval(timer);
+                    }
+                }, 1000);
+            }
+
+            init3D() {
+                // Create scene
+                this.scene = this.createScene();
+                this.camera = this.createCamera();
+                this.renderer = this.createRenderer();
+                
+                // Add lighting
+                this.addLighting();
+                
+                // Create world
+                this.createTrack();
+                this.createVehicle();
+                this.createShieldStrips();
+            }
+
+            createScene() {
+                return {
+                    objects: [],
+                    add: function(obj) { this.objects.push(obj); }
+                };
+            }
+
+            createCamera() {
+                return {
+                    position: { x: 0, y: 8, z: 15 },
+                    rotation: { x: -0.3, y: 0, z: 0 },
+                    fov: 75
+                };
+            }
+
+            createRenderer() {
+                const canvas = document.createElement('canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvas.style.display = 'block';
+                document.getElementById('gameContainer').appendChild(canvas);
+                
+                const ctx = canvas.getContext('2d');
+                return { canvas, ctx };
+            }
+
+            addLighting() {
+                // Ambient lighting simulation
+                this.ambientLight = 0.3;
+                this.directionalLight = { x: 1, y: 1, z: 1, intensity: 0.7 };
+            }
+
+            createTrack() {
+                // Ground plane
+                this.track = {
+                    type: 'plane',
+                    position: { x: 0, y: 0, z: 0 },
+                    size: { width: 200, height: 400 },
+                    color: '#2a2a2a'
+                };
+                this.scene.add(this.track);
+
+                // Grid lines
+                this.gridLines = [];
+                for (let x = -100; x <= 100; x += 20) {
+                    this.gridLines.push({
+                        type: 'line',
+                        start: { x: x, y: 0.1, z: -200 },
+                        end: { x: x, y: 0.1, z: 200 },
+                        color: '#00ffff'
+                    });
+                }
+                for (let z = -200; z <= 200; z += 40) {
+                    this.gridLines.push({
+                        type: 'line',
+                        start: { x: -100, y: 0.1, z: z },
+                        end: { x: 100, y: 0.1, z: z },
+                        color: '#00ffff'
+                    });
+                }
+            }
+
+            createVehicle() {
+                // Player vehicle
+                this.vehicle = {
+                    type: 'box',
+                    position: this.vehiclePos,
+                    rotation: this.vehicleRot,
+                    size: { width: 4, height: 1, depth: 8 },
+                    color: '#1a1a2e',
+                    accent: '#00ffff'
+                };
+                this.scene.add(this.vehicle);
+                
+                // Enemy vehicles - lined up at start
+                const startPositions = [
+                    { x: -8, z: 0 }, { x: 8, z: 0 }, { x: -16, z: 0 }, { x: 16, z: 0 }
+                ];
+                
+                startPositions.forEach((pos, i) => {
+                    const enemy = {
+                        type: 'box',
+                        position: { x: pos.x, y: 3, z: pos.z },
+                        rotation: { x: 0, y: 0, z: 0 },
+                        velocity: { x: 0, y: 0, z: 0 },
+                        size: { width: 4, height: 1, depth: 8 },
+                        color: ['#2e1a1a', '#1a2e1a', '#2e2e1a', '#2e1a2e'][i],
+                        accent: ['#ff4400', '#44ff00', '#ffff00', '#ff00ff'][i],
+                        lastShot: 0,
+                        target: null,
+                        shields: 100,
+                        hull: 100
+                    };
+                    this.enemies.push(enemy);
+                });
+            }
+
+            createShieldStrips() {
+                this.shieldStrips = [
+                    { x: -40, z: -100 },
+                    { x: 40, z: -50 },
+                    { x: -30, z: 0 },
+                    { x: 50, z: 50 },
+                    { x: -50, z: 100 }
+                ].map(pos => ({
+                    type: 'box',
+                    position: { x: pos.x, y: 0.2, z: pos.z },
+                    size: { width: 15, height: 0.4, depth: 30 },
+                    color: '#ff0000'
+                }));
             }
 
             setupInput() {
@@ -85,16 +217,19 @@
                 document.addEventListener('keyup', (e) => this.keys[e.code] = false);
                 window.addEventListener('gamepadconnected', (e) => {
                     this.gamepad = e.gamepad;
-                    console.log('🎮 PS5 Controller connected');
+                    console.log('🎮 PS5 Controller connected - R1 to fire');
                 });
             }
 
             update() {
+                if (!this.raceStarted) return;
+                
                 // Get input
                 let forward = this.keys['KeyW'] || this.keys['ArrowUp'];
                 let backward = this.keys['KeyS'] || this.keys['ArrowDown'];
                 let left = this.keys['KeyA'] || this.keys['ArrowLeft'];
                 let right = this.keys['KeyD'] || this.keys['ArrowRight'];
+                let fire = this.keys['Space'] || this.keys['KeyF'];
                 
                 // PS5 Controller
                 if (this.gamepad) {
@@ -102,6 +237,7 @@
                     if (gp) {
                         forward = forward || gp.buttons[7].value > 0.1; // R2
                         backward = backward || gp.buttons[6].value > 0.1; // L2
+                        fire = fire || gp.buttons[5].pressed; // R1
                         const stickX = gp.axes[0];
                         if (Math.abs(stickX) > 0.2) {
                             if (stickX < 0) left = true;
@@ -110,55 +246,327 @@
                     }
                 }
 
-                // Physics
-                const thrust = 0.5;
-                const drag = 0.95;
-                const turnSpeed = 0.05;
+                // Player physics
+                const thrust = 0.8;
+                const drag = 0.92;
+                const turnSpeed = 0.03;
+                const hoverForce = 0.5;
 
+                // Anti-gravity hover
+                if (this.vehiclePos.y < 3) {
+                    this.velocity.y += hoverForce;
+                }
+                this.velocity.y -= 0.02; // gravity
+
+                // Movement
                 if (forward) {
-                    this.vx += Math.sin(this.rotation) * thrust;
-                    this.vy -= Math.cos(this.rotation) * thrust;
+                    this.velocity.x += Math.sin(this.vehicleRot.y) * thrust;
+                    this.velocity.z -= Math.cos(this.vehicleRot.y) * thrust;
                 }
                 if (backward) {
-                    this.vx -= Math.sin(this.rotation) * thrust * 0.6;
-                    this.vy += Math.cos(this.rotation) * thrust * 0.6;
+                    this.velocity.x -= Math.sin(this.vehicleRot.y) * thrust * 0.6;
+                    this.velocity.z += Math.cos(this.vehicleRot.y) * thrust * 0.6;
                 }
-                if (left) this.rotation -= turnSpeed;
-                if (right) this.rotation += turnSpeed;
+                if (left) this.vehicleRot.y -= turnSpeed;
+                if (right) this.vehicleRot.y += turnSpeed;
+
+                // Player firing
+                if (fire && Date.now() - this.lastShot > 150 && this.stats.ammo > 0) {
+                    this.fireBullet(this.vehiclePos, this.vehicleRot.y, true);
+                    this.stats.ammo = Math.max(0, this.stats.ammo - 2);
+                    this.lastShot = Date.now();
+                }
 
                 // Apply drag and update position
-                this.vx *= drag;
-                this.vy *= drag;
-                this.x += this.vx;
-                this.y += this.vy;
+                this.velocity.x *= drag;
+                this.velocity.z *= drag;
+                this.velocity.y *= 0.98;
+                
+                this.vehiclePos.x += this.velocity.x;
+                this.vehiclePos.y += this.velocity.y;
+                this.vehiclePos.z += this.velocity.z;
+
+                // Ground collision
+                if (this.vehiclePos.y < 2) {
+                    this.vehiclePos.y = 2;
+                    this.velocity.y = 0;
+                }
 
                 // Boundaries
-                this.x = Math.max(50, Math.min(window.innerWidth - 50, this.x));
-                this.y = Math.max(50, Math.min(window.innerHeight - 50, this.y));
+                this.vehiclePos.x = Math.max(-90, Math.min(90, this.vehiclePos.x));
+                this.vehiclePos.z = Math.max(-190, Math.min(190, this.vehiclePos.z));
 
-                // Update visual
-                this.vehicle.style.left = this.x + 'px';
-                this.vehicle.style.top = this.y + 'px';
-                this.vehicle.style.transform = `translate(-50%, -50%) rotate(${this.rotation}rad)`;
-
-                // Check shield strips
+                // Update enemies
+                this.updateEnemies();
+                
+                // Update bullets
+                this.updateBullets();
+                
+                // Update camera
+                this.updateCamera();
+                
+                // Check collisions
                 this.checkCollisions();
                 this.updateUI();
             }
 
+            updateCamera() {
+                // Third-person camera behind vehicle
+                const offset = {
+                    x: Math.sin(this.vehicleRot.y) * 15,
+                    y: 8,
+                    z: Math.cos(this.vehicleRot.y) * 15
+                };
+                
+                this.camera.position.x = this.vehiclePos.x + offset.x;
+                this.camera.position.y = this.vehiclePos.y + offset.y;
+                this.camera.position.z = this.vehiclePos.z + offset.z;
+                
+                // Look at vehicle
+                const dx = this.vehiclePos.x - this.camera.position.x;
+                const dz = this.vehiclePos.z - this.camera.position.z;
+                this.camera.rotation.y = Math.atan2(dx, dz);
+            }
+
             checkCollisions() {
-                const strips = document.querySelectorAll('.strip');
-                strips.forEach(strip => {
-                    const rect = strip.getBoundingClientRect();
-                    const vRect = this.vehicle.getBoundingClientRect();
+                this.shieldStrips.forEach(strip => {
+                    const dx = this.vehiclePos.x - strip.position.x;
+                    const dz = this.vehiclePos.z - strip.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
                     
-                    if (vRect.left < rect.right && vRect.right > rect.left &&
-                        vRect.top < rect.bottom && vRect.bottom > rect.top) {
-                        if (this.stats.shields < 100) {
-                            this.stats.shields = Math.min(100, this.stats.shields + 0.5);
+                    if (distance < 10 && this.stats.shields < 100) {
+                        this.stats.shields = Math.min(100, this.stats.shields + 0.5);
+                    }
+                });
+                
+                // Bullet collisions
+                this.bullets.forEach((bullet, i) => {
+                    if (bullet.isPlayer) {
+                        // Player bullet vs enemies
+                        this.enemies.forEach(enemy => {
+                            const dx = bullet.position.x - enemy.position.x;
+                            const dz = bullet.position.z - enemy.position.z;
+                            if (Math.sqrt(dx*dx + dz*dz) < 3) {
+                                this.bullets.splice(i, 1);
+                                if (enemy.shields > 0) {
+                                    enemy.shields -= 25;
+                                } else {
+                                    enemy.hull -= 25;
+                                }
+                            }
+                        });
+                    } else {
+                        // Enemy bullet vs player
+                        const dx = bullet.position.x - this.vehiclePos.x;
+                        const dz = bullet.position.z - this.vehiclePos.z;
+                        if (Math.sqrt(dx*dx + dz*dz) < 3) {
+                            this.bullets.splice(i, 1);
+                            if (this.stats.shields > 0) {
+                                this.stats.shields -= 15;
+                            } else {
+                                this.stats.hull -= 15;
+                            }
                         }
                     }
                 });
+            }
+
+            updateEnemies() {
+                this.enemies.forEach(enemy => {
+                    if (enemy.hull <= 0) return;
+                    
+                    // Simple AI - move forward and occasionally turn
+                    const thrust = 0.6;
+                    const drag = 0.93;
+                    
+                    // Random steering
+                    if (Math.random() < 0.02) {
+                        enemy.rotation.y += (Math.random() - 0.5) * 0.1;
+                    }
+                    
+                    // Move forward
+                    enemy.velocity.x += Math.sin(enemy.rotation.y) * thrust;
+                    enemy.velocity.z -= Math.cos(enemy.rotation.y) * thrust;
+                    
+                    // Hover physics
+                    if (enemy.position.y < 3) enemy.velocity.y += 0.4;
+                    enemy.velocity.y -= 0.02;
+                    
+                    // Apply drag
+                    enemy.velocity.x *= drag;
+                    enemy.velocity.z *= drag;
+                    enemy.velocity.y *= 0.98;
+                    
+                    // Update position
+                    enemy.position.x += enemy.velocity.x;
+                    enemy.position.y += enemy.velocity.y;
+                    enemy.position.z += enemy.velocity.z;
+                    
+                    // Ground collision
+                    if (enemy.position.y < 2) {
+                        enemy.position.y = 2;
+                        enemy.velocity.y = 0;
+                    }
+                    
+                    // Boundaries
+                    enemy.position.x = Math.max(-90, Math.min(90, enemy.position.x));
+                    enemy.position.z = Math.max(-190, Math.min(190, enemy.position.z));
+                    
+                    // Combat AI - shoot at player with imperfect aim
+                    const dx = this.vehiclePos.x - enemy.position.x;
+                    const dz = this.vehiclePos.z - enemy.position.z;
+                    const distance = Math.sqrt(dx*dx + dz*dz);
+                    
+                    if (distance < 50 && Date.now() - enemy.lastShot > 800) {
+                        // Trajectory prediction with error
+                        const targetAngle = Math.atan2(dx, -dz);
+                        const aimError = (Math.random() - 0.5) * 0.8; // Imperfect aim
+                        this.fireBullet(enemy.position, targetAngle + aimError, false);
+                        enemy.lastShot = Date.now();
+                    }
+                });
+            }
+
+            fireBullet(position, angle, isPlayer) {
+                const speed = 3;
+                this.bullets.push({
+                    position: { x: position.x, y: position.y, z: position.z },
+                    velocity: {
+                        x: Math.sin(angle) * speed,
+                        z: -Math.cos(angle) * speed
+                    },
+                    isPlayer: isPlayer,
+                    life: 100
+                });
+            }
+
+            updateBullets() {
+                this.bullets.forEach((bullet, i) => {
+                    bullet.position.x += bullet.velocity.x;
+                    bullet.position.z += bullet.velocity.z;
+                    bullet.life--;
+                    
+                    if (bullet.life <= 0) {
+                        this.bullets.splice(i, 1);
+                    }
+                });
+            }
+
+            render() {
+                const ctx = this.renderer.ctx;
+                const canvas = this.renderer.canvas;
+                
+                // Clear screen
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Simple 3D projection
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const focalLength = 400;
+                
+                // Render track grid
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                this.gridLines.forEach(line => {
+                    const start = this.project3D(line.start, centerX, centerY, focalLength);
+                    const end = this.project3D(line.end, centerX, centerY, focalLength);
+                    
+                    if (start && end) {
+                        ctx.beginPath();
+                        ctx.moveTo(start.x, start.y);
+                        ctx.lineTo(end.x, end.y);
+                        ctx.stroke();
+                    }
+                });
+                
+                // Render shield strips
+                ctx.fillStyle = '#ff0000';
+                this.shieldStrips.forEach(strip => {
+                    const projected = this.project3D(strip.position, centerX, centerY, focalLength);
+                    if (projected) {
+                        const size = 800 / projected.z;
+                        ctx.fillRect(projected.x - size/2, projected.y - size/4, size, size/2);
+                    }
+                });
+                
+                // Render vehicle
+                const vehicleProj = this.project3D(this.vehiclePos, centerX, centerY, focalLength);
+                if (vehicleProj) {
+                    const size = 1000 / vehicleProj.z;
+                    
+                    ctx.save();
+                    ctx.translate(vehicleProj.x, vehicleProj.y);
+                    ctx.rotate(this.vehicleRot.y);
+                    
+                    // Vehicle body
+                    ctx.fillStyle = '#1a1a2e';
+                    ctx.fillRect(-size/2, -size, size, size*2);
+                    
+                    // Neon accent
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-size/2, -size, size, size*2);
+                    
+                    ctx.restore();
+                }
+                
+                // Render enemies
+                this.enemies.forEach(enemy => {
+                    if (enemy.hull <= 0) return;
+                    
+                    const enemyProj = this.project3D(enemy.position, centerX, centerY, focalLength);
+                    if (enemyProj) {
+                        const size = 1000 / enemyProj.z;
+                        
+                        ctx.save();
+                        ctx.translate(enemyProj.x, enemyProj.y);
+                        ctx.rotate(enemy.rotation.y);
+                        
+                        // Enemy body
+                        ctx.fillStyle = enemy.color;
+                        ctx.fillRect(-size/2, -size, size, size*2);
+                        
+                        // Enemy accent
+                        ctx.strokeStyle = enemy.accent;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-size/2, -size, size, size*2);
+                        
+                        ctx.restore();
+                    }
+                });
+                
+                // Render bullets
+                ctx.fillStyle = '#ffff00';
+                this.bullets.forEach(bullet => {
+                    const bulletProj = this.project3D(bullet.position, centerX, centerY, focalLength);
+                    if (bulletProj) {
+                        const size = 200 / bulletProj.z;
+                        ctx.fillRect(bulletProj.x - size/2, bulletProj.y - size/2, size, size);
+                    }
+                });
+            }
+
+            project3D(pos, centerX, centerY, focalLength) {
+                // Transform relative to camera
+                const relX = pos.x - this.camera.position.x;
+                const relY = pos.y - this.camera.position.y;
+                const relZ = pos.z - this.camera.position.z;
+                
+                // Simple camera rotation
+                const cosY = Math.cos(-this.camera.rotation.y);
+                const sinY = Math.sin(-this.camera.rotation.y);
+                
+                const rotX = relX * cosY - relZ * sinY;
+                const rotZ = relX * sinY + relZ * cosY;
+                
+                if (rotZ <= 0) return null; // Behind camera
+                
+                return {
+                    x: centerX + (rotX * focalLength) / rotZ,
+                    y: centerY - (relY * focalLength) / rotZ,
+                    z: rotZ
+                };
             }
 
             updateUI() {
@@ -169,6 +577,7 @@
 
             gameLoop() {
                 this.update();
+                this.render();
                 requestAnimationFrame(() => this.gameLoop());
             }
         }
