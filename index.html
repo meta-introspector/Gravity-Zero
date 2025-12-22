@@ -36,6 +36,10 @@
                 <div class="label">AMMO</div>
                 <div class="bar"><div class="bar-fill ammo-bar" id="ammoBar" style="width: 100%"></div></div>
             </div>
+            <div class="stat">
+                <div class="label">LAP</div>
+                <div id="lapCounter" style="color: #00ffff; font-size: 14px;">1</div>
+            </div>
         </div>
     </div>
 
@@ -57,6 +61,9 @@
                 this.raceStarted = false;
                 this.countdown = 3;
                 this.lastShot = 0;
+                this.lap = 1;
+                this.checkpoints = [0, 0, 0, 0]; // 4 checkpoints
+                this.lastCheckpoint = -1;
                 
                 this.init3D();
                 this.setupInput();
@@ -133,30 +140,40 @@
             }
 
             createTrack() {
-                // Ground plane
-                this.track = {
-                    type: 'plane',
-                    position: { x: 0, y: 0, z: 0 },
-                    size: { width: 200, height: 400 },
-                    color: '#2a2a2a'
-                };
-                this.scene.add(this.track);
-
-                // Grid lines
-                this.gridLines = [];
-                for (let x = -100; x <= 100; x += 20) {
-                    this.gridLines.push({
-                        type: 'line',
-                        start: { x: x, y: 0.1, z: -200 },
-                        end: { x: x, y: 0.1, z: 200 },
-                        color: '#00ffff'
+                // Oval racetrack
+                this.trackPoints = [];
+                for (let i = 0; i < 32; i++) {
+                    const angle = (i / 32) * Math.PI * 2;
+                    this.trackPoints.push({
+                        x: Math.cos(angle) * 60,
+                        z: Math.sin(angle) * 120
                     });
                 }
-                for (let z = -200; z <= 200; z += 40) {
+                
+                // Track surface
+                this.track = {
+                    type: 'oval',
+                    points: this.trackPoints,
+                    color: '#2a2a2a'
+                };
+                
+                // Checkpoints (4 points around track)
+                this.raceCheckpoints = [
+                    { x: 60, z: 0, id: 0 },
+                    { x: 0, z: 120, id: 1 },
+                    { x: -60, z: 0, id: 2 },
+                    { x: 0, z: -120, id: 3 }
+                ];
+                
+                // Grid lines for track
+                this.gridLines = [];
+                for (let i = 0; i < this.trackPoints.length; i++) {
+                    const p1 = this.trackPoints[i];
+                    const p2 = this.trackPoints[(i + 1) % this.trackPoints.length];
                     this.gridLines.push({
                         type: 'line',
-                        start: { x: -100, y: 0.1, z: z },
-                        end: { x: 100, y: 0.1, z: z },
+                        start: { x: p1.x - 20, y: 0.1, z: p1.z },
+                        end: { x: p1.x + 20, y: 0.1, z: p1.z },
                         color: '#00ffff'
                     });
                 }
@@ -199,11 +216,10 @@
 
             createShieldStrips() {
                 this.shieldStrips = [
-                    { x: -40, z: -100 },
-                    { x: 40, z: -50 },
-                    { x: -30, z: 0 },
-                    { x: 50, z: 50 },
-                    { x: -50, z: 100 }
+                    { x: 40, z: 60 },
+                    { x: -40, z: -60 },
+                    { x: 0, z: 100 },
+                    { x: 0, z: -100 }
                 ].map(pos => ({
                     type: 'box',
                     position: { x: pos.x, y: 0.2, z: pos.z },
@@ -246,29 +262,37 @@
                     }
                 }
 
-                // Player physics
-                const thrust = 0.8;
-                const drag = 0.92;
-                const turnSpeed = 0.03;
-                const hoverForce = 0.5;
+                // Player physics - improved controls
+                const thrust = 1.2;
+                const drag = 0.88;
+                const turnSpeed = 0.04;
+                const hoverForce = 0.8;
 
                 // Anti-gravity hover
                 if (this.vehiclePos.y < 3) {
                     this.velocity.y += hoverForce;
                 }
-                this.velocity.y -= 0.02; // gravity
+                this.velocity.y -= 0.03; // gravity
 
-                // Movement
+                // Improved movement with proper forward direction
+                const forwardX = Math.sin(this.vehicleRot.y);
+                const forwardZ = -Math.cos(this.vehicleRot.y);
+                
                 if (forward) {
-                    this.velocity.x += Math.sin(this.vehicleRot.y) * thrust;
-                    this.velocity.z -= Math.cos(this.vehicleRot.y) * thrust;
+                    this.velocity.x += forwardX * thrust;
+                    this.velocity.z += forwardZ * thrust;
                 }
                 if (backward) {
-                    this.velocity.x -= Math.sin(this.vehicleRot.y) * thrust * 0.6;
-                    this.velocity.z += Math.cos(this.vehicleRot.y) * thrust * 0.6;
+                    this.velocity.x -= forwardX * thrust * 0.6;
+                    this.velocity.z -= forwardZ * thrust * 0.6;
                 }
-                if (left) this.vehicleRot.y -= turnSpeed;
-                if (right) this.vehicleRot.y += turnSpeed;
+                
+                // Turning only when moving
+                const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+                const turnFactor = Math.min(speed * 0.3, 1);
+                
+                if (left) this.vehicleRot.y -= turnSpeed * turnFactor;
+                if (right) this.vehicleRot.y += turnSpeed * turnFactor;
 
                 // Player firing
                 if (fire && Date.now() - this.lastShot > 150 && this.stats.ammo > 0) {
@@ -292,9 +316,12 @@
                     this.velocity.y = 0;
                 }
 
-                // Boundaries
-                this.vehiclePos.x = Math.max(-90, Math.min(90, this.vehiclePos.x));
-                this.vehiclePos.z = Math.max(-190, Math.min(190, this.vehiclePos.z));
+                // Remove boundaries for oval track
+                // this.vehiclePos.x = Math.max(-90, Math.min(90, this.vehiclePos.x));
+                // this.vehiclePos.z = Math.max(-190, Math.min(190, this.vehiclePos.z));
+                
+                // Check lap progress
+                this.checkLapProgress();
 
                 // Update enemies
                 this.updateEnemies();
@@ -311,21 +338,29 @@
             }
 
             updateCamera() {
-                // Third-person camera behind vehicle
-                const offset = {
-                    x: Math.sin(this.vehicleRot.y) * 15,
-                    y: 8,
-                    z: Math.cos(this.vehicleRot.y) * 15
-                };
+                // Smooth third-person camera
+                const distance = 20;
+                const height = 10;
                 
-                this.camera.position.x = this.vehiclePos.x + offset.x;
-                this.camera.position.y = this.vehiclePos.y + offset.y;
-                this.camera.position.z = this.vehiclePos.z + offset.z;
+                // Target camera position behind vehicle
+                const targetX = this.vehiclePos.x - Math.sin(this.vehicleRot.y) * distance;
+                const targetY = this.vehiclePos.y + height;
+                const targetZ = this.vehiclePos.z + Math.cos(this.vehicleRot.y) * distance;
                 
-                // Look at vehicle
-                const dx = this.vehiclePos.x - this.camera.position.x;
-                const dz = this.vehiclePos.z - this.camera.position.z;
+                // Smooth camera movement
+                const lerpFactor = 0.1;
+                this.camera.position.x += (targetX - this.camera.position.x) * lerpFactor;
+                this.camera.position.y += (targetY - this.camera.position.y) * lerpFactor;
+                this.camera.position.z += (targetZ - this.camera.position.z) * lerpFactor;
+                
+                // Look at vehicle with slight forward offset
+                const lookAtX = this.vehiclePos.x + Math.sin(this.vehicleRot.y) * 5;
+                const lookAtZ = this.vehiclePos.z - Math.cos(this.vehicleRot.y) * 5;
+                
+                const dx = lookAtX - this.camera.position.x;
+                const dz = lookAtZ - this.camera.position.z;
                 this.camera.rotation.y = Math.atan2(dx, dz);
+                this.camera.rotation.x = -0.2; // Slight downward angle
             }
 
             checkCollisions() {
@@ -573,6 +608,32 @@
                 document.getElementById('shieldBar').style.width = this.stats.shields + '%';
                 document.getElementById('hullBar').style.width = this.stats.hull + '%';
                 document.getElementById('ammoBar').style.width = this.stats.ammo + '%';
+                document.getElementById('lapCounter').textContent = this.lap;
+            }
+
+            checkLapProgress() {
+                // Check checkpoint progression
+                this.raceCheckpoints.forEach(checkpoint => {
+                    const dx = this.vehiclePos.x - checkpoint.x;
+                    const dz = this.vehiclePos.z - checkpoint.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if (distance < 25) {
+                        const expectedNext = (this.lastCheckpoint + 1) % 4;
+                        if (checkpoint.id === expectedNext) {
+                            this.checkpoints[checkpoint.id] = 1;
+                            this.lastCheckpoint = checkpoint.id;
+                            
+                            // Check if lap completed
+                            if (this.checkpoints.every(c => c === 1)) {
+                                this.lap++;
+                                this.checkpoints = [0, 0, 0, 0];
+                                this.lastCheckpoint = -1;
+                                console.log(`Lap ${this.lap} started!`);
+                            }
+                        }
+                    }
+                });
             }
 
             gameLoop() {
